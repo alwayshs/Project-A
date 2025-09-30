@@ -1,3 +1,18 @@
+import pygame
+
+pygame.init
+
+SCREEN_WIDTH = 600
+SCREEN_HEIGHT = 800
+screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT)) #화면 크기 설정
+clock = pygame.time.Clock()
+
+BLACK = (0, 0, 0)
+GRAY = (128, 128, 128)
+WHITE = (255, 255, 255)
+
+CELL_SIZE = 40
+
 # 0: 길, 1: 벽
 grid = [
     [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -11,6 +26,32 @@ grid = [
     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
 ]
+
+while True: #게임 루프
+    screen.fill(BLACK) #단색으로 채워 화면 지우기
+
+    #변수 업데이트
+
+    event = pygame.event.poll() #이벤트 처리
+    if event.type == pygame.QUIT:
+        break
+
+    #화면 그리기
+
+    for row_index in range(len(grid)):
+        for column_index in range(len(grid[0])):
+            rect = (CELL_SIZE * column_index, CELL_SIZE * row_index, CELL_SIZE, CELL_SIZE)
+            value = grid[row_index][column_index]
+            if value == 1:  # 벽
+                pygame.draw.rect(screen, GRAY, rect)
+            else:  # 길
+                pygame.draw.rect(screen, WHITE, rect, 1)
+
+    pygame.display.update() #모든 화면 그리기 업데이트
+    clock.tick(5) #30 FPS (초당 프레임 수) 를 위한 딜레이 추가, 딜레이 시간이 아닌 목표로 하는 FPS 값
+
+pygame.quit()
+
 
 # 시작점 (row, col)
 start = (0, 0)
