@@ -27,32 +27,6 @@ grid = [
     [0, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0]
 ]
 
-while True: #게임 루프
-    screen.fill(BLACK) #단색으로 채워 화면 지우기
-
-    #변수 업데이트
-
-    event = pygame.event.poll() #이벤트 처리
-    if event.type == pygame.QUIT:
-        break
-
-    #화면 그리기
-
-    for row_index in range(len(grid)):
-        for column_index in range(len(grid[0])):
-            rect = (CELL_SIZE * column_index, CELL_SIZE * row_index, CELL_SIZE, CELL_SIZE)
-            value = grid[row_index][column_index]
-            if value == 1:  # 벽
-                pygame.draw.rect(screen, GRAY, rect)
-            else:  # 길
-                pygame.draw.rect(screen, WHITE, rect, 1)
-
-    pygame.display.update() #모든 화면 그리기 업데이트
-    clock.tick(5) #30 FPS (초당 프레임 수) 를 위한 딜레이 추가, 딜레이 시간이 아닌 목표로 하는 FPS 값
-
-pygame.quit()
-
-
 # 시작점 (row, col)
 start = (0, 0)
 
@@ -74,6 +48,8 @@ class Node:
 
 open_list = []  # 열린 리스트
 close_list = [] # 닫힌 리스트
+path = None
+path_found = False # 경로를 찾았는지 알려주는 플래그
 
 # 시작 노드와 도착 노드를 생성
 start_node = Node(None, start)
@@ -91,14 +67,17 @@ def heuristic(current_node, end_node):
     # 대각선 거리를 이용한 휴리스틱 (Diagonal Distance)
     dx = abs(x1 - x2)
     dy = abs(y1 - y2)
+
+    weight = 1.1 # << 가중치 추가 (1.1 ~ 1.5)
+    cost = (10 * max(dx, dy) + 4 * min(dx, dy)) * weight
     
-    # 상하좌우 비용=10, 대각선 비용=14
-    cost = 10 * (dx + dy) + 4 * min(dx, dy)
-    # 더 직관적인 공식: 10 * max(dx, dy) + (14 - 10) * min(dx, dy)
-    # cost = 10 * max(dx, dy) + 4 * min(dx, dy)
     return cost
 
-while len(open_list) > 0:
+def astar_step():
+    global path, path_found # 전역 변수 선언
+
+    if not open_list or path_found:
+        return
     
     # 1. 가장 좋은 노드 선택하기
     # open_list에 있는 노드 중 f 비용이 가장 낮은 노드를 찾는다.
@@ -116,12 +95,15 @@ while len(open_list) > 0:
     # 3. 목표에 도달했는지 확인
     # 현재 노드가 도착점이면, 경로를 역추적해서 반환하고 종료
     if current_node == end_node:
-        path = []
+        temp_path = []
         current = current_node
         while current is not None:
-            path.append(current.position)
+            temp_path.append(current.position)
             current = current.parent
-        print(path[::-1])  # 경로를 뒤집어서 반환
+            
+        path = temp_path[::-1]
+        path_found = True
+        return # astar_step 함수 종료
 
     # 4. 이웃 노드 생성 및 탐색
     children = []
@@ -159,7 +141,7 @@ while len(open_list) > 0:
 
         # g, h, f 비용 계산
         child.g = current_node.g + movement_cost
-        child.h = heuristic(child, end_node) # heuristic 함수는 이미 잘 만들어 두었습니다.
+        child.h = heuristic(child, end_node)
         child.f = child.g + child.h
 
         # 자식 노드가 이미 open_list에 있고, g 비용이 더 높은지 확인하는 로직
@@ -174,3 +156,54 @@ while len(open_list) > 0:
 
         # 위 모든 조건에 해당하지 않으면, open_list에 자식 노드 추가
         open_list.append(child)
+
+# 메인 게임 루프를 위한 변수
+running = True 
+
+while running: #게임 루프
+    screen.fill(BLACK) #단색으로 채워 화면 지우기
+
+    #변수 업데이트
+
+    # 모든 이벤트 처리
+    for event in pygame.event.get():  
+        if event.type == pygame.QUIT:
+            running = False # 이 변수가 False가 되면 다음 프레임부터 루프가 멈춤
+
+    # A* 알고리즘 한 단계 실행
+    if not path_found: # 경로를 아직 못 찾았을 때만 알고리즘 실행
+        astar_step()
+
+    #화면 그리기
+
+    for row_index in range(len(grid)):
+        for column_index in range(len(grid[0])):
+            rect = (CELL_SIZE * column_index, CELL_SIZE * row_index, CELL_SIZE, CELL_SIZE)
+            value = grid[row_index][column_index]
+            if value == 1:  # 벽
+                pygame.draw.rect(screen, GRAY, rect)
+            else:  # 길
+                pygame.draw.rect(screen, WHITE, rect, 1)
+
+    # 열린 리스트 (파랑)
+    for node in open_list:
+        r, c = node.position
+        rect = (CELL_SIZE * c, CELL_SIZE * r, CELL_SIZE, CELL_SIZE)
+        pygame.draw.rect(screen, (0, 0, 255), rect)
+
+    # 닫힌 리스트 (빨강)
+    for node in close_list:
+        r, c = node.position
+        rect = (CELL_SIZE * c, CELL_SIZE * r, CELL_SIZE, CELL_SIZE)
+        pygame.draw.rect(screen, (255, 0, 0), rect)
+
+    # 최종 경로 (초록)
+    if path:
+        for (r, c) in path:
+            rect = (CELL_SIZE * c, CELL_SIZE * r, CELL_SIZE, CELL_SIZE)
+            pygame.draw.rect(screen, (0, 255, 0), rect)
+
+    pygame.display.update()
+    clock.tick(3)  # 속도 조절 (10 FPS)
+
+pygame.quit()
